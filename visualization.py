@@ -4,95 +4,115 @@ from matplotlib.animation import FuncAnimation, FFMpegWriter, PillowWriter
 from matplotlib.colors import LinearSegmentedColormap, ListedColormap
 from matplotlib.patches import Patch
 import os
+import numpy.typing as npt
 # from state_grid import EMPTY, SUSCEPTIBLE, INFECTED, RESISTANT, SENESCENT
 # from simulation_core import MatrixSimulation
-from parameters import *
-import numpy.typing as npt
 
 def visualize_infection_spread(timepoint_cell_states_matrices_array: npt.NDArray[np.uint8]):
-    """Visualizes the infection spread over time using matrix data."""
-    
-    fig, ax = plt.subplots(figsize=(12, 10))
-    
-    # Define colors in the correct order (0-4)
-    colors = ['grey', 'pink', 'red', 'brown', 'gold']  # EMPTY=0, SUSCEPTIBLE=1, INFECTED=2, RESISTANT=3, SENESCENT=4
+    fig, ax = plt.subplots(figsize=(13, 12))  # taller figure
+
+    colors = ['grey', 'pink', 'red', 'brown', 'gold']
     custom_cmap = ListedColormap(colors)
-    
-    # Create legend in the same order
+
     legend_elements = [
-        Patch(facecolor='grey', label='EmptySpot'),
-        Patch(facecolor='pink', label='Susceptible'),
-        Patch(facecolor='red', label='Infected'),
-        Patch(facecolor='brown', label='Resistant'),
-        Patch(facecolor='gold', label='Senescent'),
+        Patch(facecolor='grey',    label='EmptySpot'),
+        Patch(facecolor='pink',    label='Susceptible'),
+        Patch(facecolor='red',     label='Infected'),
+        Patch(facecolor='brown',   label='Resistant'),
+        Patch(facecolor='gold',    label='Senescent'),
     ]
 
-    # Set up the plot
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_title("Infection Spread Over Time")
-    
-    # Add legend
-    ax.legend(handles=legend_elements, 
-              loc='upper left', 
-              bbox_to_anchor=(1.05, 1),
-              title="Cell Types")
-    
-    # Set fixed aspect ratio and limits
-    ax.set_aspect('equal')
     grid_size = timepoint_cell_states_matrices_array[0].shape[0]
-    ax.set_xlim(-0.5, grid_size - 0.5)
-    ax.set_ylim(-0.5, grid_size - 0.5)
-    
+
+    # IMPORTANT: reserve space at bottom for the count text
+    plt.subplots_adjust(left=0.07, right=0.82, top=0.95, bottom=0.18)
+
     def init():
-        im = ax.imshow(timepoint_cell_states_matrices_array[0], cmap=custom_cmap, 
-                      vmin=0, vmax=4, origin='lower',
-                      extent=[-0.5, grid_size-0.5, -0.5, grid_size-0.5])
-        ax.set_title(f"Timepoint 0")
-        return [im]
-        
-    def animate(i: int):
-        ax.clear()
-        # Reapply settings after clear
+        im = ax.imshow(
+            timepoint_cell_states_matrices_array[0],
+            cmap=custom_cmap,
+            vmin=0, vmax=4,
+            origin='lower',
+            extent=[-0.5, grid_size-0.5, -0.5, grid_size-0.5]
+        )
+
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
-        ax.set_title(f"Timepoint {i}")
         ax.set_aspect('equal')
         ax.set_xlim(-0.5, grid_size - 0.5)
         ax.set_ylim(-0.5, grid_size - 0.5)
-        
-        # Add legend to each frame
-        ax.legend(handles=legend_elements, 
-                  loc='upper left', 
-                  bbox_to_anchor=(1.05, 1),
+
+        ax.legend(handles=legend_elements,
+                  loc='upper left', bbox_to_anchor=(1.05, 1),
                   title="Cell Types")
-        
-        im = ax.imshow(timepoint_cell_states_matrices_array[i], cmap=custom_cmap, 
-                      vmin=0, vmax=4, origin='lower',
-                      extent=[-0.5, grid_size-0.5, -0.5, grid_size-0.5])
+
+        ax.set_title("Timepoint 0", fontsize=14, pad=10)
+
+        counts = np.bincount(timepoint_cell_states_matrices_array[0].ravel(), minlength=5)
+        count_str = f"EmptySpot: {counts[0]:,}   Susceptible: {counts[1]:,}   Infected: {counts[2]:,}   Resistant: {counts[3]:,}   Senescent: {counts[4]:,}"
+        fig.text(
+            0.5, 0.04,                     
+            count_str,
+            ha='center', va='bottom',
+            fontsize=13, fontweight='bold',
+            bbox=dict(facecolor='white', edgecolor='gray', alpha=0.95, pad=8, boxstyle='round,pad=0.5')
+        )
+
         return [im]
 
-    plt.tight_layout()
+    def animate(i: int):
+        ax.clear()
+
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_aspect('equal')
+        ax.set_xlim(-0.5, grid_size - 0.5)
+        ax.set_ylim(-0.5, grid_size - 0.5)
+
+        ax.legend(handles=legend_elements,
+                  loc='upper left', bbox_to_anchor=(1.05, 1),
+                  title="Cell Types")
+
+        im = ax.imshow(
+            timepoint_cell_states_matrices_array[i],
+            cmap=custom_cmap,
+            vmin=0, vmax=4,
+            origin='lower',
+            extent=[-0.5, grid_size-0.5, -0.5, grid_size-0.5]
+        )
+
+        ax.set_title(f"Timepoint {i}", fontsize=14, pad=10)
+
+        counts = np.bincount(timepoint_cell_states_matrices_array[i].ravel(), minlength=5)
+        count_str = f"EmptySpot: {counts[0]:,}   Susceptible: {counts[1]:,}   Infected: {counts[2]:,}   Resistant: {counts[3]:,}   Senescent: {counts[4]:,}"
+        fig.text(
+            0.5, 0.04,
+            count_str,
+            ha='center', va='bottom',
+            fontsize=13, fontweight='bold',
+            bbox=dict(facecolor='white', edgecolor='gray', alpha=0.95, pad=8, boxstyle='round,pad=0.5')
+        )
+
+        return [im]
+
+    anim = FuncAnimation(fig, animate, init_func=init,
+                         frames=len(timepoint_cell_states_matrices_array),
+                         interval=2000, blit=False, repeat=False)
+
     os.makedirs("./output", exist_ok=True)
-    
-    anim = FuncAnimation(fig, func=animate, init_func=init, 
-                        frames=len(timepoint_cell_states_matrices_array), interval=10000, 
-                        blit=False, repeat=False)  # blit=False for better compatibility
-    
-    # Save with higher quality
-    # anim.save("./output/infection_spread_animation.gif", 
-    #          writer='pillow', fps=1, dpi=150)
-    
+
     try:
-        writer = FFMpegWriter(fps=1, metadata=dict(artist='Simulation'), bitrate=1800)
-        filename = "./output/infection_spread_animation.mp4"
+        writer = FFMpegWriter(fps=8, metadata=dict(artist='Simulation'), bitrate=2800)
+        filename = "./output/infection_spread_with_COUNTS.mp4"
         anim.save(filename, writer=writer)
+        print(f"Saved MP4: {filename}")
     except Exception as e:
-        print(f"Failed to save MP4: {e}. Falling back to GIF.")
-        writer = PillowWriter(fps=fps)
-        filename = "./output/infection_spread_animation.gif"
+        print(f"MP4 save failed: {e}")
+        writer = PillowWriter(fps=8)
+        filename = "./output/infection_spread_with_COUNTS.gif"
         anim.save(filename, writer=writer)
-            
+        print(f"Saved GIF: {filename}")
+
     plt.close(fig)
     
 def visualize_virus_surface(timepoint_virus_level_array: np.ndarray):
@@ -101,17 +121,14 @@ def visualize_virus_surface(timepoint_virus_level_array: np.ndarray):
     
     fig, ax = plt.subplots(figsize=(12, 10))
     
-    # Define a colormap from white to red
     virus_cmap = LinearSegmentedColormap.from_list('virus_cmap', ['white', 'orange', 'red'])
     
-    # Set up the plot
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_title("Virus Level Surface Over Time")
     
     global_max: int = np.max(timepoint_virus_level_array)
     
-    # Create initial image and colorbar ONCE
     im = ax.imshow(timepoint_virus_level_array[0], cmap=virus_cmap, 
                   vmin=0.0, vmax=global_max, origin='lower')
     cbar = plt.colorbar(im, ax=ax, label='Quantity of viral particles')
@@ -121,7 +138,7 @@ def visualize_virus_surface(timepoint_virus_level_array: np.ndarray):
         return [im]
         
     def animate(i: int):
-        # Update only the image data, not the entire plot
+  
         im.set_array(timepoint_virus_level_array[i])
         ax.set_title(f"Timepoint {i}")
         
@@ -134,15 +151,14 @@ def visualize_virus_surface(timepoint_virus_level_array: np.ndarray):
                         frames=len(timepoint_virus_level_array), interval=10000, 
                         blit=True, repeat=False)  # blit=True for better performance
     
-    # anim.save("./output/virus_level_surface_animation.gif", 
-    #          writer='pillow', fps=1, dpi=150)
+ 
     try:
-        writer = FFMpegWriter(fps=1, metadata=dict(artist='Simulation'), bitrate=1800)
+        writer = FFMpegWriter(fps=8, metadata=dict(artist='Simulation'), bitrate=1800)
         filename = "./output/virus_level_surface_animation.mp4"
         anim.save(filename, writer=writer)
     except Exception as e:
         print(f"Failed to save MP4: {e}. Falling back to GIF.")
-        writer = PillowWriter(fps=fps)
+        writer = PillowWriter(fps=8)
         filename = "./output/virus_level_surface_animation.gif"
         anim.save(filename, writer=writer)
     
@@ -196,12 +212,12 @@ def visualize_interferon_surface(timepoint_interferon_level_array: np.ndarray):
     #          writer='pillow', fps=1, dpi=150)
     
     try:
-        writer = FFMpegWriter(fps=1, metadata=dict(artist='Simulation'), bitrate=1800)
+        writer = FFMpegWriter(fps=8, metadata=dict(artist='Simulation'), bitrate=1800)
         filename = "./output/interferon_level_surface_animation.mp4"
         anim.save(filename, writer=writer)
     except Exception as e:
         print(f"Failed to save MP4: {e}. Falling back to GIF.")
-        writer = PillowWriter(fps=fps)
+        writer = PillowWriter(fps=8)
         filename = "./output/interferon_level_surface_animation.gif"
         anim.save(filename, writer=writer)
         
